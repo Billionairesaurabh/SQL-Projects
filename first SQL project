@@ -5,3 +5,124 @@ CREATE TABLE users (
     bio TEXT
 );
 
+CREATE TABLE posts (
+    post_id INT PRIMARY KEY,
+    user_id INT,
+    post_text TEXT,
+    post_date TIMESTAMP,
+    likes_count INT DEFAULT 0,
+    FOREIGN KEY (user_id) REFERENCES users(user_id)
+);
+
+CREATE TABLE comments (
+    comment_id INT PRIMARY KEY,
+    post_id INT,
+    user_id INT,
+    comment_text TEXT,
+    comment_date TIMESTAMP,
+    FOREIGN KEY (post_id) REFERENCES posts(post_id),
+    FOREIGN KEY (user_id) REFERENCES users(user_id)
+);
+
+CREATE TABLE likes (
+    like_id INT PRIMARY KEY,
+    post_id INT,
+    user_id INT,
+    like_date TIMESTAMP,
+    FOREIGN KEY (post_id) REFERENCES posts(post_id),
+    FOREIGN KEY (user_id) REFERENCES users(user_id)
+);
+
+CREATE TABLE followers (
+    follower_id INT,
+    following_id INT,
+    follow_date TIMESTAMP,
+    PRIMARY KEY (follower_id, following_id),
+    FOREIGN KEY (follower_id) REFERENCES users(user_id),
+    FOREIGN KEY (following_id) REFERENCES users(user_id)
+);
+
+INSERT INTO users VALUES 
+(1, 'alice', '2023-01-01', 'Tech enthusiast'),
+(2, 'bob', '2023-02-15', 'Travel blogger'),
+(3, 'charlie', '2023-03-10', 'Food lover');
+
+-- Insert sample posts
+INSERT INTO posts VALUES 
+(101, 1, 'Just learned SQL! #coding', '2023-05-01 10:00:00', 15),
+(102, 2, 'Visited Paris! #travel', '2023-05-02 12:00:00', 50),
+(103, 3, 'Made pasta today! #food', '2023-05-03 15:00:00', 30),
+(104, 1, 'Working on a new project #coding', '2023-05-04 09:00:00', 25);
+
+-- Insert sample comments
+INSERT INTO comments VALUES 
+(1001, 101, 2, 'Great job!', '2023-05-01 10:30:00'),
+(1002, 102, 3, 'Beautiful place!', '2023-05-02 12:30:00'),
+(1003, 103, 1, 'Looks delicious!', '2023-05-03 15:30:00');
+
+-- Insert sample likes
+INSERT INTO likes VALUES 
+(2001, 101, 2, '2023-05-01 10:15:00'),
+(2002, 101, 3, '2023-05-01 10:20:00'),
+(2003, 102, 1, '2023-05-02 12:05:00'),
+(2004, 102, 3, '2023-05-02 12:10:00');
+
+-- Insert sample followers
+INSERT INTO followers VALUES 
+(2, 1, '2023-04-01 08:00:00'), -- Bob follows Alice
+(3, 2, '2023-04-05 09:00:00'), -- Charlie follows Bob
+(1, 3, '2023-04-10 10:00:00'); -- Alice follows Charlie
+
+select * from users;
+select * from posts;
+select * from comments;
+select * from likes;
+select * from followers;
+
+-- GROUP BY & HAVING
+-- Find users with more than 20 likes on their posts:
+SELECT u.username, COUNT(l.like_id) AS total_likes
+FROM users u
+JOIN posts p ON u.user_id = p.user_id
+JOIN likes l ON p.post_id = l.post_id
+GROUP BY u.username
+HAVING COUNT(l.like_id) > 20;
+
+-- Window Functions (RANK, DENSE_RANK)
+-- Rank users by post engagement (likes + comments):
+
+SELECT 
+    u.username,
+    COUNT(DISTINCT p.post_id) AS post_count,
+    COUNT(DISTINCT l.like_id) AS like_count,
+    COUNT(DISTINCT c.comment_id) AS comment_count,
+    RANK() OVER (ORDER BY COUNT(DISTINCT l.like_id) + COUNT(DISTINCT c.comment_id) DESC) AS engagement_rank,
+    DENSE_RANK() OVER (ORDER BY COUNT(DISTINCT l.like_id) + COUNT(DISTINCT c.comment_id) DESC) AS dense_engagement_rank
+FROM users u
+LEFT JOIN posts p ON u.user_id = p.user_id
+LEFT JOIN likes l ON p.post_id = l.post_id
+LEFT JOIN comments c ON p.post_id = c.post_id
+GROUP BY u.username;
+
+-- Trending Hashtags (Using String Functions & GROUP BY)
+
+SELECT 
+    SUBSTRING(post_text FROM '#([A-Za-z0-9_]+)') AS hashtag,
+    COUNT(*) AS hashtag_count
+FROM posts
+WHERE post_text LIKE '%#%'
+GROUP BY hashtag
+ORDER BY hashtag_count DESC
+LIMIT 5;
+
+-- Most Followed Users (Self-Join & Aggregation)
+
+SELECT 
+    u.username,
+    COUNT(f.follower_id) AS follower_count
+FROM users u
+LEFT JOIN followers f ON u.user_id = f.following_id
+GROUP BY u.username
+ORDER BY follower_count DESC;
+
+
